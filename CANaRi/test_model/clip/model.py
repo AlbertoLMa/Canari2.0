@@ -258,7 +258,7 @@ class CLIP(nn.Module):
 
         if isinstance(vision_layers, (tuple, list)):
             vision_heads = vision_width * 32 // 64
-            self.visual = ModifiedResNet(
+            self.visual1 = ModifiedResNet(
                 layers=vision_layers,
                 output_dim=embed_dim,
                 heads=vision_heads,
@@ -267,7 +267,7 @@ class CLIP(nn.Module):
             )
         else:
             vision_heads = vision_width // 64
-            self.visual = VisualTransformer(
+            self.visual1 = VisualTransformer(
                 input_resolution=image_resolution,
                 patch_size=vision_patch_size,
                 width=vision_width,
@@ -275,6 +275,29 @@ class CLIP(nn.Module):
                 heads=vision_heads,
                 output_dim=embed_dim
             )
+
+
+        if isinstance(vision_layers, (tuple, list)):
+            self.visual2 = ModifiedResNet(
+                layers=vision_layers,
+                output_dim=embed_dim,
+                heads=vision_heads,
+                input_resolution=image_resolution,
+                width=vision_width
+            )
+        else:
+            vision_heads = vision_width // 64
+            self.visual2 = VisualTransformer(
+                input_resolution=image_resolution,
+                patch_size=vision_patch_size,
+                width=vision_width,
+                layers=vision_layers,
+                heads=vision_heads,
+                output_dim=embed_dim
+            )
+
+
+
 
         self.transformer = Transformer(
             width=transformer_width,
@@ -297,18 +320,32 @@ class CLIP(nn.Module):
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.positional_embedding, std=0.01)
 
-        if isinstance(self.visual, ModifiedResNet):
-            if self.visual.attnpool is not None:
-                std = self.visual.attnpool.c_proj.in_features ** -0.5
-                nn.init.normal_(self.visual.attnpool.q_proj.weight, std=std)
-                nn.init.normal_(self.visual.attnpool.k_proj.weight, std=std)
-                nn.init.normal_(self.visual.attnpool.v_proj.weight, std=std)
-                nn.init.normal_(self.visual.attnpool.c_proj.weight, std=std)
+        if isinstance(self.visual1, ModifiedResNet):
+            if self.visual1.attnpool is not None:
+                std = self.visual1.attnpool.c_proj.in_features ** -0.5
+                nn.init.normal_(self.visual1.attnpool.q_proj.weight, std=std)
+                nn.init.normal_(self.visual1.attnpool.k_proj.weight, std=std)
+                nn.init.normal_(self.visual1.attnpool.v_proj.weight, std=std)
+                nn.init.normal_(self.visual1.attnpool.c_proj.weight, std=std)
 
-            for resnet_block in [self.visual.layer1, self.visual.layer2, self.visual.layer3, self.visual.layer4]:
+            for resnet_block in [self.visual1.layer1, self.visual1.layer2, self.visual1.layer3, self.visual1.layer4]:
                 for name, param in resnet_block.named_parameters():
                     if name.endswith("bn3.weight"):
                         nn.init.zeros_(param)
+
+        if isinstance(self.visual2, ModifiedResNet):
+            if self.visual2.attnpool is not None:
+                std = self.visual1.attnpool.c_proj.in_features ** -0.5
+                nn.init.normal_(self.visual2.attnpool.q_proj.weight, std=std)
+                nn.init.normal_(self.visual2.attnpool.k_proj.weight, std=std)
+                nn.init.normal_(self.visual2.attnpool.v_proj.weight, std=std)
+                nn.init.normal_(self.visual2.attnpool.c_proj.weight, std=std)
+
+            for resnet_block in [self.visual2.layer1, self.visual2.layer2, self.visual2.layer3, self.visual2.layer4]:
+                for name, param in resnet_block.named_parameters():
+                    if name.endswith("bn3.weight"):
+                        nn.init.zeros_(param)
+
 
         proj_std = (self.transformer.width ** -0.5) * ((2 * self.transformer.layers) ** -0.5)
         attn_std = self.transformer.width ** -0.5
@@ -331,11 +368,20 @@ class CLIP(nn.Module):
         return mask
 
     @property
-    def dtype(self):
-        return self.visual.conv1.weight.dtype
 
-    def encode_image(self, image):
-        return self.visual(image.type(self.dtype))
+
+    # WHAT DO I NEED TO DO HERE ASDFASDFADSFASDFADF
+
+    def dtype(self):
+        return self.visual1.conv1.weight.dtype
+
+    def encode_image1(self, image):
+        return self.visual1(image.type(self.dtype))
+
+    def encode_image2(self, image):
+        return self.visual2(image.type(self.dtype))
+
+
 
     def encode_text(self, text):
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
