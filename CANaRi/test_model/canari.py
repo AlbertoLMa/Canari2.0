@@ -118,7 +118,7 @@ class CANARI(CLIP):
 
     @property
     def device(self):
-        return self.visual.conv1.weight.device
+        return self.visual1.conv1.weight.device
 
     def encode_audio(self, audio: torch.Tensor) -> torch.Tensor:
         return self.audio(audio.to(self.device))

@@ -233,7 +233,6 @@ class VisualTransformer(nn.Module):
 
         if self.proj is not None:
             x = x @ self.proj
-
         return x
 
 
@@ -295,8 +294,6 @@ class CLIP(nn.Module):
                 heads=vision_heads,
                 output_dim=embed_dim
             )
-
-
 
 
         self.transformer = Transformer(
