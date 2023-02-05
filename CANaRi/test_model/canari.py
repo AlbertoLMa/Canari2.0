@@ -116,6 +116,9 @@ class CANARI(CLIP):
 
         self.embed_dim = embed_dim
 
+
+# WHAT TO DO?!
+
     @property
     def device(self):
         return self.visual1.conv1.weight.device
@@ -159,8 +162,8 @@ class CANARI(CLIP):
 
         # MODIFICATION
         if image1 is not None and image2 is not None:
-            image_features_one = self.encode_image(image1)
-            image_features_two = self.encode_image(image2)
+            image_features_one = self.encode_image1(image1)
+            image_features_two = self.encode_image2(image2)
 
             image_features = torch.mul(image_features_one, self.a) + torch.mul(image_features_two, self.b)
             
@@ -209,65 +212,7 @@ class CANARI(CLIP):
 
         return (features, logits), loss
 
-    
-    def forward(self,
-                audio: Optional[torch.Tensor] = None,
-                image: Optional[torch.Tensor] = None,
-                text: Optional[List[List[str]]] = None,
-                batch_indices: Optional[torch.Tensor] = None) -> ClipOutput:
 
-        audio_features = None
-        image_features = None
-        text_features = None
-        sample_weights = None
-
-        if audio is not None:
-            audio_features = self.encode_audio(audio)
-            audio_features = audio_features / audio_features.norm(dim=-1, keepdim=True)
-
-        if image is not None:
-            image_features = self.encode_image(image)
-            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
-
-        if text is not None:
-            if batch_indices is None:
-                batch_indices = torch.arange(len(text), dtype=torch.int64, device=self.device)
-
-            text_features = self.encode_text(text, '{}', batch_indices)
-            text_features = text_features / text_features.norm(dim=-1, keepdim=True)
-
-            if hasattr(self, 'class_weights') and hasattr(self, 'label_to_class_idx'):
-                sample_weights = torch.stack([
-                    sum(self.class_weights[self.label_to_class_idx[label]] for label in entities)
-                    for idx, entities in enumerate(text) if idx in batch_indices
-                ])
-
-        features: ClipFeatures = (audio_features, image_features, text_features)
-
-        logit_scale_ai = torch.clamp(self.logit_scale_ai.exp(), min=1.0, max=100.0)
-        logit_scale_at = torch.clamp(self.logit_scale_at.exp(), min=1.0, max=100.0)
-        logit_scale_it = torch.clamp(self.logit_scale.exp(), min=1.0, max=100.0)
-
-        logits_audio_image = None
-        logits_audio_text = None
-        logits_image_text = None
-
-        if (audio_features is not None) and (image_features is not None):
-            logits_audio_image = logit_scale_ai * audio_features @ image_features.T
-
-        if (audio_features is not None) and (text_features is not None):
-            logits_audio_text = logit_scale_at * audio_features @ text_features.T
-
-        if (image_features is not None) and (text_features is not None):
-            logits_image_text = logit_scale_it * image_features @ text_features.T
-
-        logits: ClipLogits = (logits_audio_image, logits_audio_text, logits_image_text)
-
-        loss = self.loss_fn(logits, sample_weights)
-        if audio is not None and loss is not None:
-            loss = loss + self.audio.loss_ttf(self.device)
-
-        return (features, logits), loss
 
 
     def loss_fn(self, logits: ClipLogits, sample_weights: Optional[torch.Tensor] = None) -> Optional[torch.Tensor]:
