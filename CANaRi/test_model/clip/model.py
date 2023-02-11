@@ -388,7 +388,7 @@ class CLIP(nn.Module):
         return x
 
     def forward(self, image, text):
-        image_features = self.encode_image(image)
+        image_features = self.encode_image1(image)
         text_features = self.encode_text(text)
 
         # normalized features
