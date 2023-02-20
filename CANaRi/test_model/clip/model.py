@@ -336,7 +336,7 @@ class CLIP(nn.Module):
                 nn.init.normal_(self.visual2.attnpool.q_proj.weight, std=std)
                 nn.init.normal_(self.visual2.attnpool.k_proj.weight, std=std)
                 nn.init.normal_(self.visual2.attnpool.v_proj.weight, std=std)
-                nn.init.normal_(self.visual2.attnpool.c_proj.weight, std=std)`
+                nn.init.normal_(self.visual2.attnpool.c_proj.weight, std=std)
             for resnet_block in [self.visual2.layer1, self.visual2.layer2, self.visual2.layer3, self.visual2.layer4]:
                 for name, param in resnet_block.named_parameters():
                     if name.endswith("bn3.weight"):
